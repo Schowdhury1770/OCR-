@@ -1,0 +1,110 @@
+pip install --upgrade azure-cognitiveservices-vision-computervision
+from azure.cognitiveservices.vision.computervision import ComputerVisionClient
+from azure.cognitiveservices.vision.computervision.models import OperationStatusCodes
+from azure.cognitiveservices.vision.computervision.models import VisualFeatureTypes
+from msrest.authentication import CognitiveServicesCredentials
+
+from array import array
+import os
+from PIL import Image
+import sys
+import time
+
+'''
+Authenticate
+Authenticates your credentials and creates a client.
+'''
+subscription_key = "a73d0b31eb83407bb2432d901c388f71"
+endpoint = "https://cognitiservices.cognitiveservices.azure.com/"
+
+computervision_client = ComputerVisionClient(endpoint, CognitiveServicesCredentials(subscription_key))
+'''
+END - Authenticate
+'''
+
+'''
+OCR: Read File using the Read API, extract text - remote
+This example will extract text in an image, then print results, line by line.
+This API call can also extract handwriting style text (not shown).
+'''
+print("===== Read File - remote =====")
+# Get an image with text
+read_image_url = "https://raw.githubusercontent.com/MicrosoftDocs/azure-docs/master/articles/cognitive-services/Computer-vision/Images/readsample.jpg"
+#read_image_url="C:\Users\Asus\Downloads\Invoices\98b4acfdb5d1be92173d26b36fc31ce2.pdf"
+# Call API with URL and raw response (allows you to get the operation location)
+read_response = computervision_client.read(read_image_url,  raw=True)
+
+# Get the operation location (URL with an ID at the end) from the response
+read_operation_location = read_response.headers["Operation-Location"]
+# Grab the ID from the URL
+operation_id = read_operation_location.split("/")[-1]
+
+# Call the "GET" API and wait for it to retrieve the results 
+while True:
+    read_result = computervision_client.get_read_result(operation_id)
+    if read_result.status not in ['notStarted', 'running']:
+        break
+    time.sleep(1)
+
+# Print the detected text, line by line
+if read_result.status == OperationStatusCodes.succeeded:
+    for text_result in read_result.analyze_result.read_results:
+        for line in text_result.lines:
+            print(line.text)
+            print(line.bounding_box)
+print()
+'''
+END - Read File - remote
+'''
+
+print("End of Computer Vision quickstart.")
+
+"""As an optional step, see How to specify the model version for the model version parameter values you can use. The most recent model includes any enhancements to the previous GA and preview models. For example, to use the model version 2022-01-30-preview, edit the read statement as shown:"""
+
+# Call API with URL and raw response (allows you to get the operation location)
+read_response = computervision_client.read(read_image_url,  raw=True, model_version="2022-01-30-preview")
+"""OCR: Read File using the Read API, extract text - local
+This example extracts text from a local image, then prints results.
+This API call can also recognize remote image text (shown in next example, Read File - remote)."""
+
+images_folder=r"C:/Users/Asus/Downloads/Invoices/.*"
+print("===== Read File - local =====")
+# Get image path
+read_image_path = os.path.join (images_folder, "C:/Users/Asus/Downloads/Invoices/98b4acfdb5d1be92173d26b36fc31ce2.pdf")#hand written img
+#read_image_path = os.path.join (images_folder, "C:/Users/Asus/Downloads/Invoices/150c6dac8f39ea1ceb80f8bad8065f17.pdf") # slight inclined text orinted doc
+#read_image_path = os.path.join (images_folder, "C:/Users/Asus/Downloads/Invoices/529c306aacd5ab01d2cdaf608cbc8733.pdf")
+#read_image_path = os.path.join (images_folder, r"C:\Users\Asus\Downloads\IMG-20210803-WA0012 (1).jpg")
+# Open the image
+read_image = open(read_image_path, "rb")
+
+# Call API with image and raw response (allows you to get the operation location)
+read_response = computervision_client.read_in_stream(read_image, raw=True)
+# Get the operation location (URL with ID as last appendage)
+read_operation_location = read_response.headers["Operation-Location"]
+# Take the ID off and use to get results
+operation_id = read_operation_location.split("/")[-1]
+
+# Call the "GET" API and wait for the retrieval of the results
+while True:
+    read_result = computervision_client.get_read_result(operation_id)
+    if read_result.status.lower () not in ['notstarted', 'running']:
+        break
+    print ('Waiting for result...')
+    time.sleep(10)
+
+# Print results, line by line
+if read_result.status == OperationStatusCodes.succeeded:
+    for text_result in read_result.analyze_result.read_results:
+        for line in text_result.lines:
+            print(line.text)
+            print(line.bounding_box)
+print()
+'''
+END - Read File - local
+'''
+
+print("End of Computer Vision quickstart.")
+
+for text_result in read_result.analyze_result.read_results:
+        for line in text_result.lines:
+            print(line.text)
